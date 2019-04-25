@@ -241,6 +241,13 @@ class _ModalSheetContentState extends State<ModalSheetContent> {
           );
         }
       }
+    }).catchError((Object error) {
+      Fluttertoast.showToast(
+        msg: "Oops! Please check your Internet.",
+        fontSize: 13.0,
+        toastLength: Toast.LENGTH_SHORT,
+        timeInSecForIos: 1,
+      );
     }).catchError((error) {
       print('error : $error');
     });
