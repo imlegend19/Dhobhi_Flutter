@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:rounded_modal/rounded_modal.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'dart:convert' as JSON;
+import 'package:dhobhi/api_static.dart';
+import 'package:dhobhi/circulation_post.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 Widget buildTextField(IconData icon, String labelText,
     TextEditingController controller, BuildContext context) {
@@ -90,7 +96,7 @@ class _ModalSheetContentState extends State<ModalSheetContent> {
       if (cardNumberController.text.length != 4) {
         setState(() {
           buttonText = "ENTER VALID CARD NO";
-            enableCheckInButton = false;
+          enableCheckInButton = false;
         });
       } else if (clothesController.text == '') {
         setState(() {
@@ -121,11 +127,6 @@ class _ModalSheetContentState extends State<ModalSheetContent> {
         });
       }
     }
-
-  }
-
-  void validateClothes() {
-
   }
 
   @override
@@ -179,7 +180,7 @@ class _ModalSheetContentState extends State<ModalSheetContent> {
                       color: Colors.white,
                     ),
                   ),
-                  onPressed: enableCheckInButton ? () => {} : null,
+                  onPressed: enableCheckInButton ? () => checkIn() : null,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30.0)),
                 ),
@@ -189,6 +190,101 @@ class _ModalSheetContentState extends State<ModalSheetContent> {
         ],
       ),
     );
+  }
+
+  Future<http.Response> createCheckInPost(CheckInPost post) async {
+    final response = await http.post(CirculationStatic.keyCheckInURL,
+        headers: {HttpHeaders.contentTypeHeader: 'application/json'},
+        body: postCheckInToJson(post));
+
+    return response;
+  }
+
+  Future<http.Response> createCheckOutPost(CheckOutPost post) async {
+    final response = await http.post(CirculationStatic.keyCheckOutURL,
+        headers: {HttpHeaders.contentTypeHeader: 'application/json'},
+        body: postCheckOutToJson(post));
+
+    return response;
+  }
+
+  checkIn() {
+    CheckInPost post = CheckInPost(
+        cardNumber: cardNumberController.text, clothes: clothesController.text);
+
+    createCheckInPost(post).then((response) {
+      if (response.statusCode == 201) {
+        Fluttertoast.showToast(
+          msg: "Checked In Successfully!",
+          fontSize: 13.0,
+          toastLength: Toast.LENGTH_SHORT,
+          timeInSecForIos: 1,
+        );
+      } else if (response.statusCode == 400) {
+        var json = JSON.jsonDecode(response.body);
+        assert(json is Map);
+        List msg = json["card_no"];
+        if (msg[0] == "This field must be unique.") {
+          Fluttertoast.showToast(
+            msg:
+                "Card number ${cardNumberController.text} is already checked in.",
+            fontSize: 13.0,
+            toastLength: Toast.LENGTH_SHORT,
+            timeInSecForIos: 1,
+          );
+        } else {
+          Fluttertoast.showToast(
+            msg: "Card number ${cardNumberController.text} is invalid.",
+            fontSize: 13.0,
+            toastLength: Toast.LENGTH_SHORT,
+            timeInSecForIos: 1,
+          );
+        }
+      }
+    }).catchError((error) {
+      print('error : $error');
+    });
+  }
+
+  checkOut() {
+    CheckOutPost post = CheckOutPost(cardNumber: cardNumberController.text);
+
+    createCheckOutPost(post).then((response) {
+      if (response.statusCode == 201) {
+        Fluttertoast.showToast(
+          msg: "Checked Out Successfully!",
+          fontSize: 13.0,
+          toastLength: Toast.LENGTH_SHORT,
+          timeInSecForIos: 1,
+        );
+      } else if (response.statusCode == 500) {
+        Fluttertoast.showToast(
+          msg:
+              "Card number ${cardNumberController.text} is not checked in.",
+          fontSize: 13.0,
+          toastLength: Toast.LENGTH_SHORT,
+          timeInSecForIos: 1,
+        );
+      } else if (response.statusCode == 400) {
+        Fluttertoast.showToast(
+          msg: "Card number ${cardNumberController.text} is invalid.",
+          fontSize: 13.0,
+          toastLength: Toast.LENGTH_SHORT,
+          timeInSecForIos: 1,
+        );
+      } else {
+        print(response.statusCode);
+      }
+    }).catchError((Object error) {
+      Fluttertoast.showToast(
+        msg: "Oops! Please check your Internet.",
+        fontSize: 13.0,
+        toastLength: Toast.LENGTH_SHORT,
+        timeInSecForIos: 1,
+      );
+    }).catchError((error) {
+      print("error : $error");
+    });
   }
 
   Widget buildCheckOut() {
@@ -232,7 +328,7 @@ class _ModalSheetContentState extends State<ModalSheetContent> {
                       color: Colors.white,
                     ),
                   ),
-                  onPressed: enableCheckOutButton ? () => {} : null,
+                  onPressed: enableCheckOutButton ? () => checkOut() : null,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30.0)),
                 ),
